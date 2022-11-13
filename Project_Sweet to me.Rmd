@@ -12,7 +12,7 @@ editor_options:
 
 ## Intro
 
-Lately I have been reading Prof Segal and prof Elinav's book about [personalized nutrition](http://personalnutrition.org/AboutGuests.aspx).
+Lately I have been reading Prof Segal and Prof Elinav's book about [personalized nutrition](http://personalnutrition.org/AboutGuests.aspx).
 
 I discovered that beyond the general nutritional laws that apply to the majority of the population, there are personal laws.
 These laws depend, among other things, on our lifestyle, our genetics and the microbiome in our body.
@@ -20,22 +20,22 @@ These laws depend, among other things, on our lifestyle, our genetics and the mi
 Therefore, on the recommendation of their book, I set out on a journey to discover the best diet for me.
 This is the travel diary of my experience using sugar measurements as a tool for better health.
 
-Although this is a personal experiment, you can do it on yourself and with this code create a tool your glucose result analyze.
+Although this is a personal experiment, you can do it on yourself and with this code to analyze your glucose result.
 
 ### Goal
 
-In this project, I had a special self goal: Better nutrition for myself.using the method from the book, I decided to take a glucose test and test my glucose and see What meals are good for me, given my lifestyle.
+In this project, I had a special self goal: Improve my nutrition. Using the method from the book, I decided to take a glucose test and test my glucose and see What meals are good for me, given my lifestyle.
 
 ### Method
 
-For 2 weeks, I have been using a glucose meter kit of 'FreeStyle' for testing my meals (including some snacks), and also my morning and night result.
-I recorded using sheets my meals, tests, sleep and walk and create a small data set.
+For 2 weeks, I have been using the glucose meter kit 'FreeStyle' to test my meals (including some snacks), and also my morning and night result.
+I used sheets to record my meals, tests, sleep and walk and create a small data set.
 
-Ideal meal check has 5 tests: One with the first bite, and 4 later with half hour gap. later, in order to save test and focus on the major points I started to test 2 test after each meal with 1 hour gap. all along I did test before and after my sleep.
+Ideal meal check has 5 tests: One with the first bite, and 4 later with half hour gap. Later, in order to save test and focus on the major points I started testing twice after each meal with 1 hour gap. All along I did test before and after my sleep.
 
 Then, I tried to find any correlation or effect which needed more data (a quite similar meal).
 
-This is a BI project, not a statistical test. The Data is too small, inconsistent and non well measured for a formal experiment.
+This is a BI project, not a statistical test. The Data is too small, inconsistent and not precociously measured for a formal experiment.
 
 ## Structure
 
@@ -135,6 +135,7 @@ sweets %>%
 ```
 
 From this data, I can see which meal is my "to go" and which us a big no.
+
 For example, worst snacks, or best breakfast:
 
 ```{r example who is biggest, message=FALSE}
@@ -168,12 +169,12 @@ main_df%>%
   ggplot(aes(y= Glucose, x= Walke_d_before, color= Dinner))+
   geom_point(alpha= 0.8)+
   geom_smooth( se= F, method = "lm")+xlab("steps walked a day before")+
-  ggtitle("Is it healthy to walk ahead?",
-  subtitle = "Glucose result by steps walked the other day and meal")+
+  ggtitle("Is it healthy to walk ahead of timr?",
+  subtitle = "Glucose result by steps walked the previous day and meal")+
   scale_color_brewer(palette="Set1")+scale_x_continuous(labels= scales::comma)
 ```
 
-as far as I can see with no model creations, there is no corellation.
+As far as I can see with no model creations, there is no correlation.
 
 ## Ingredients effect
 
@@ -197,7 +198,7 @@ theme(legend.position="bottom"
 )
 ```
 
-I can see a clue that sleeping better might help reduce morning glucose rate, and also that in general, my study arte of reducing night glucose rate is fine, even removing one elevating point.
+I can see a clue that sleeping better might help reduce morning glucose rate, and also that in general, my study are of reducing night glucose rate is fine, even removing one elevating point.
 
 ```{r Is sugar that bad, warning=FALSE, message=FALSE}
 Ingredients_df %>%
@@ -228,7 +229,7 @@ Ingredients_df %>%
          flower= has_cauliflower | has_broccoli) %>% 
   ggplot(aes(y= Glucose, x= as.factor(flower),color= (flower==1)))+
   geom_point()+geom_boxplot(alpha= 0.4, fill= "Gray60")+
-  ggtitle("Does cauliflower and broccoli good for me?", subtitle = "Compare lunch with or whithout broccoli and cauliflower")+xlab("")+
+  ggtitle("iS cauliflower and broccoli good for me?", subtitle = "Compare lunch with or whithout broccoli and cauliflower")+xlab("")+
   scale_color_brewer(palette="Accent")
 ```
 
@@ -404,33 +405,32 @@ GGally:: ggcorr(method = c("everything", "pearson"))+ #visualization of correlat
 #GGally:: ggcorr(method= c("everything","pearson"))
 ```
 
-## conclusions:
+## Conclusions:
 
-After a few days in the project, I felt my energy is more balanced.
-I became less tired during lunch, evening and night.
+After a few days in the project, I felt my energy was more balanced.
+I became less tired during the afternoon, evening and night.
 
-The experiment's method forced me to eat less snacks, and as a result I found out how dessertless meal makes me feel more full, didn't eat afternoon meal and were more energetic later in the way home.
+The experiment's method forced me to eat fewer snacks, and as a result I found out how dessertless meals make me feel more full, I refrained from afternoon snacks and was more energetic later on my way home.
 
-Moreover, I realize adding a balanced amount of more fat and protein to my meals can stable my sugar rate and cause me to eat less calories without calculating calories or carbohydrates.
+Moreover, I realize how adding a balanced amount of more fat and protein to my meals can stabalize my sugar rate and cause me to eat fewer calories without worrying about excess calories or carbohydrates.
 
-Looking for a better body energy balance, I would consider sleeping a slightly better and more might help me maintaining balanced.
+Looking for a better body energy balance, I would that consider sleeping slightly more might help me maintain balance.
 A walk might help as well.
 
 Now here are some food based self advice:
 
--   Adding fat yogurt to the oatmeal can balance the healthy carbohydrates with oil that stable my sugar.
+-   Adding fat yogurt to the oatmeal can balance the healthy carbohydrates with oil to stabalize sugar.
 
--   Moderate quantity of carbohydrates like Couscous or quinoa on lunch can be fine as long as the meal contain protein & some fat
+-   Moderate quantity of carbohydrates like couscous or quinoa in lunch can be fine as long as the meal contain protein & some fat.
 
--   A fish is a good protein to add to my meals which I hadn't thought on till now
+-   A fish is a good protein to add to my meals which I hadn't thought of till now.
 
--   Ice cream is the best snack for me, this is might due to the fat and water covering the sugar.
-    Nuts with fresh fruit are also excellent, and Ice coffee is ok.
+-   Ice cream is the best snack for me, which might be due to the fat and water covering the sugar.
+    Nuts with fresh fruit are also excellent, and ice coffee is ok.
     
+-   Broccoli and cauliflower are potentially good for balancing lunch.
 
--   Broccoli and cauliflower are suspected of being good for lunch balance
-
--   When I have a bad meal, coffee can lower my glucose, and this might relevant to tea as well
+-   After an unhealthy meal, coffee can lower my glucose, and this might be relevant to tea as well.
 
 -   The last 2 hours before sleep shouldn't contain too big meals (no sambusak before bed...)
 
@@ -438,7 +438,7 @@ Now here are some food based self advice:
 
 This is a self experiment.
 
-There is some path that might be good for most people like mix fat in carbohydrates and space meals,
-but some might not. This self diary can help you create your own diary!
+There is some path that might be good for most people like mixing fat in carbohydrates and spacing out meals,
+but might not be good for others. I hope that my self diary can help you create your own diary!
 
 Hope for better health and energy balance for all of you!
