@@ -1,0 +1,444 @@
+---
+title: "Project Sweet"
+subtitle: "How glucose test can help everybody to stable energy rate in his body"
+author: "Yoni G’etahun"
+date: "2022-11-11"
+output: pdf_document
+geometry: "left=2.5cm,right=2.5cm,top=2cm,bottom=2cm"
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+
+## Intro
+
+Lately I have been reading Prof Segal and prof Elinav's book about [personalized nutrition](http://personalnutrition.org/AboutGuests.aspx).
+
+I discovered that beyond the general nutritional laws that apply to the majority of the population, there are personal laws.
+These laws depend, among other things, on our lifestyle, our genetics and the microbiome in our body.
+
+Therefore, on the recommendation of their book, I set out on a journey to discover the best diet for me.
+This is the travel diary of my experience using sugar measurements as a tool for better health.
+
+Although this is a personal experiment, you can do it on yourself and with this code create a tool your glucose result analyze.
+
+### Goal
+
+In this project, I had a special self goal: Better nutrition for myself.using the method from the book, I decided to take a glucose test and test my glucose and see What meals are good for me, given my lifestyle.
+
+### Method
+
+For 2 weeks, I have been using a glucose meter kit of 'FreeStyle' for testing my meals (including some snacks), and also my morning and night result.
+I recorded using sheets my meals, tests, sleep and walk and create a small data set.
+
+Ideal meal check has 5 tests: One with the first bite, and 4 later with half hour gap. later, in order to save test and focus on the major points I started to test 2 test after each meal with 1 hour gap. all along I did test before and after my sleep.
+
+Then, I tried to find any correlation or effect which needed more data (a quite similar meal).
+
+This is a BI project, not a statistical test. The Data is too small, inconsistent and non well measured for a formal experiment.
+
+## Structure
+
+```{r library, warning=FALSE, message=FALSE, echo=FALSE}
+library(tidyverse)
+library(readxl)
+library(scales)
+library(cowplot) # background_grid()
+library(tidymodels)
+library(lubridate) # for converting time
+```
+```{r import data , echo=FALSE}
+sweets<- read_xlsx(
+  'data/sweets.xls') %>% as.data.frame() %>% 
+  mutate(Time_after_meal = hour(Time_after_meal) + minute(Time_after_meal)/60,  #convert time after to numeric for polynomial effect
+         Time = as_datetime(Time) %>% 
+           hms:: as_hms(),
+         Glucose_result= as.numeric(Glucose_result)
+         ) %>%  rename(Glucose  =Glucose_result)
+
+day_score<- read_xlsx(
+  'data/day_score.xls') %>% 
+  filter(!is.na(Walk_today)) %>% 
+  mutate(Sleep_before = hour(Sleep_before) + minute(Sleep_before)/60)  #convert time after to numeric for polynomial effect
+
+main_df<- left_join(sweets, day_score, by= c("day_list_date"= "Date") )
+```
+```{r Functions for Ingredients split, echo=FALSE}
+mini_color<- function(x)
+{x<- x %>% 
+    str_to_lower() %>%
+    str_remove_all("white") %>% 
+    str_remove_all("fake ") %>%
+    str_remove_all("balls") %>%
+    str_remove_all("tahun") %>%
+    str_replace_all("tuna", "fish") %>%
+    str_replace_all(" ,", ",") %>% 
+    str_replace_all(', ', ",") %>% 
+    str_squish() %>%
+    {ifelse(str_detect(.,'NA'), NA,.)} %>%
+    str_split(",") %>%
+    map(~ paste0("has_", .) ) %>%
+    map(~str_replace_all(.," ", "_"))
+  x}
+
+close_em_col<- function(x) #wider the colour
+{
+  cbind(x, x$Ingredients %>% 
+  qdapTools::mtabulate()) %>%
+  select(-c(Ingredients))
+}
+
+Ingredients_df<- main_df%>%
+  mutate(Ingredients= mini_color(Ingredients)) %>%
+  close_em_col() %>% as.data.frame() %>%  select(-has_cruasont)
+```
+
+The data is made of 2 data sheets I made:
+
+- **sweets**: data per test
+
+- **day_score**: data per day ingredients
+
+Later you will see:
+
+- **main_df**: combined data before splitting the ingredients
+
+- **Ingredients_df**: combined data 'before splitting the ingredients with split column by ingredients
+
+### Average day
+
+Here we can see an average day.
+From this graph, I can choose which meal and day to look for looking for a good or bad example
+
+```{r over the day data, message=FALSE, warning=FALSE}
+sweets %>%
+  filter(!is.null(Glucose), !Dinner %in% c('tzom', 'sleep'),) %>% 
+  mutate(Date = format(Date, "%m-%d")) %>% 
+  mutate(Date= as.factor(Date)) %>% 
+  ggplot(aes(x= Time, y= Glucose, color= Date))+
+  geom_line(size= 1.1)+ geom_point(size= 0.9, shape= 1, color= "Black")+
+  facet_wrap(~Date,3)+
+  guides(color=guide_legend(title="Day"))+ xlab("Time")+
+  background_grid(minor = "yx", color.major= "gray50")+
+    theme(legend.position = "none")+ggtitle("Glucose result by day")
+
+sweets %>%
+  filter(!is.null(Glucose),!Date %in% c('2022-10-22','2022-11-04')) %>% 
+  mutate(Date = format(Date, "%m-%d")) %>% 
+  mutate(Date= as.factor(Date),
+         Glucose= scale(Glucose)) %>% ##,
+  ggplot(aes(x= Time_after_meal, y= Glucose, color= Date))+
+  geom_line(size= 1.15)+ geom_point(size= 1.1, shape= 2)+facet_wrap(~Dinner)+
+  guides(color=guide_legend(title="Day"))+ xlab("H after meal")+
+  background_grid(minor = "y", color.major= "gray50")+
+  ggtitle("Glucose result by meal")
+```
+
+From this data, I can see which meal is my "to go" and which us a big no.
+For example, worst snacks, or best breakfast:
+
+```{r example who is biggest, message=FALSE}
+main_df%>%
+  filter(Dinner== 'snack', Type != 'zero') %>%
+  mutate(Time_after_meal= round(Time_after_meal,2)) %>% 
+  select(ID,Date, Glucose, Type, Ingredients, Time_after_meal) %>% 
+  arrange(desc(Glucose)) %>% slice(1:5)
+  
+main_df%>%
+  filter(Dinner== 'morning', Type != 'zero') %>%
+  mutate(Time_after_meal= round(Time_after_meal,2)) %>% 
+  select(ID,Date, Glucose, Type, Ingredients, Time_after_meal) %>% 
+  arrange(Glucose) %>% slice(1:5)
+```
+
+Here I try to find a general effect of walkin/ sleaping on the glucose
+
+```{r daily effect, message=FALSE}
+main_df%>%
+  mutate(active= walking_before== "T"| walking_while== "T" ) %>% 
+  ggplot(aes(y= Glucose, x= Walk_today, color= Dinner))+
+  geom_point(alpha= 0.8)+
+  geom_smooth(aes(x= Walk_today, y= Glucose), se= F, method = "lm")+
+  xlab("steps walked today")+ggtitle("Is it healthy to walk?",
+  subtitle = "Glucose result by steps walked this day and meal")+
+  scale_x_continuous(labels= scales::comma)
+
+main_df%>%
+  mutate(active= walking_before== "T"| walking_while== "T" ) %>% 
+  ggplot(aes(y= Glucose, x= Walke_d_before, color= Dinner))+
+  geom_point(alpha= 0.8)+
+  geom_smooth( se= F, method = "lm")+xlab("steps walked a day before")+
+  ggtitle("Is it healthy to walk ahead?",
+  subtitle = "Glucose result by steps walked the other day and meal")+
+  scale_color_brewer(palette="Set1")+scale_x_continuous(labels= scales::comma)
+```
+
+as far as I can see with no model creations, there is no corellation.
+
+## Ingredients effect
+
+### Daily effect
+
+```{r combine data, warning=FALSE, message=FALSE}
+Ingredients_df %>%  select(c(1:7,9:17)) %>% sample_n(5)
+
+main_df %>%
+  filter(Dinner %in% c('sleep', 'tzom')) %>% 
+  ggplot(aes(y= Glucose, x= Sleep_before, shape= Work==1,color= Dinner))+
+  geom_point()+geom_smooth(method = "lm", se= F)+
+  theme(legend.position="bottom"
+)
+
+main_df %>%
+  filter(Dinner %in% c('sleep', 'tzom')) %>% 
+  ggplot(aes(y= Glucose, x= Date, color= Dinner, shape= Glucose<= 1.5))+
+  geom_point()+geom_smooth(se= F, method = "lm")+
+theme(legend.position="bottom"
+)
+```
+
+I can see a clue that sleeping better might help reduce morning glucose rate, and also that in general, my study arte of reducing night glucose rate is fine, even removing one elevating point.
+
+```{r Is sugar that bad, warning=FALSE, message=FALSE}
+Ingredients_df %>%
+  mutate(sugar= has_ice_coffe |has_5_ckookies|has_waffels| has_ice_cream| has_jam| 
+           has_banana|has_apple| has_shalva| has_snack)%>% 
+  ggplot(aes(y= Glucose, x=Walk_today, color= sugar))+
+  geom_point()+
+  geom_smooth(alpha= 0.2, method = "lm", se= F)+
+  theme(panel.grid.major = element_line(color = "gray40",
+                                  size = 0.5,
+                                  linetype = 1),
+        panel.grid.minor.x = element_line(color = "gray80",
+                                  size = 0.20,
+                                  linetype = 1),
+        legend.position="bottom"
+        )+scale_x_continuous(labels= scales::comma)+
+  ggtitle("Is sugar that bad?",subtitle ="Glucose rate by steps walked this day, split by sweet snakcs and general food")
+```
+
+### Meal effect
+
+We can also create example of compering lunch with and without cauliflower and broccoli:
+
+```{r}
+Ingredients_df %>%
+  filter(Dinner %in% 'lunch') %>% 
+  mutate(fisher= has_fish| has_salmon,
+         flower= has_cauliflower | has_broccoli) %>% 
+  ggplot(aes(y= Glucose, x= as.factor(flower),color= (flower==1)))+
+  geom_point()+geom_boxplot(alpha= 0.4, fill= "Gray60")+
+  ggtitle("Does cauliflower and broccoli good for me?", subtitle = "Compare lunch with or whithout broccoli and cauliflower")+xlab("")+
+  scale_color_brewer(palette="Accent")
+```
+
+In the following 4 graphs, you will see with me how different ingredients contained in different meal's glucose result:
+
+```{r sweet compare, echo=FALSE}
+sweet_list_0<- c('has_ice_coffe' ,'has_5_ckookies','has_waffels' ,'has_ice_cream', 'has_jam', 'has_banana','has_apple',
+                 'has_shalva','has_snack', 'has_chocolate')
+sweet_list<- str_remove_all(sweet_list_0,"has_")
+
+Ingredients_df %>%
+  mutate(sugar= has_ice_coffe |has_5_ckookies|has_waffels| has_ice_cream| has_jam| has_banana|has_apple| has_shalva| has_snack |has_chocolate,
+         Glucose= scale(Glucose))%>% filter(sugar== T) %>% 
+  pivot_longer(cols = starts_with("has"),
+    names_to = "Sweet_type",
+    values_to = "value", values_drop_na = TRUE) %>%
+  select(-c(sugar)) %>% 
+  mutate(Sweet_type= str_remove_all(Sweet_type,"has_")) %>% 
+  filter(value==1, Sweet_type %in% sweet_list) %>% 
+  
+  ggplot(aes(y= Glucose, x=Sweet_type,color= Sweet_type))+
+  geom_point()+#geom_smooth(se= F, method = "lm")
+  geom_boxplot(alpha= 0.2)+
+  theme(legend.position = "none")+
+  ggtitle("Glucose by sweet ingrediang indicator") + xlab("")
+```
+
+The same goes for those graphs:
+
+```{r carbon compare, echo=FALSE}
+carbon_list_0<- c('has_quinoa' ,'has_kuskus','has_oatmeal' ,'has_pasta', 'has_patato',
+                  'has_rice','has_sambusak','has_tortia','has_laffa')
+carbon_list<- str_remove_all(carbon_list_0,"has_")
+```
+
+```{r carbon graph, echo=FALSE}
+Ingredients_df %>%
+  mutate(carbon= has_quinoa |has_kuskus |has_oatmeal |has_pasta |has_potato |
+           has_rice |has_laffa| has_sambusak |has_tortia
+           )%>% 
+  filter(carbon== T,Type!=  "zero") %>% 
+  pivot_longer(cols = starts_with("has"),
+    names_to = "carbon_type",
+    values_to = "value", values_drop_na = TRUE) %>%
+  select(-c(carbon)) %>% 
+  mutate(carbon_type= str_remove_all(carbon_type,"has_")) %>% 
+  filter(value==1, carbon_type %in% carbon_list) %>% 
+  
+  ggplot(aes(y= Glucose, x= carbon_type,color= carbon_type, fill= "Black"))+
+  geom_point()+ geom_boxplot(alpha= 0.2)+ theme(legend.position = "none")+
+  ggtitle("Glucose by Carbohydrate ingrediang indicator") + xlab("")
+```
+
+```{r protein compare, echo=FALSE}
+protein_list_0<- c('has_salmon' ,'has_fish','has_chicken','has_meat', 'has_peas','has_humus',
+                   'has_veg_hamburge','has_falafe','has_liver','has_egg', 'has_tofu', 'has_faba_bean','has_shawarma')
+protein_list<- str_remove_all(protein_list_0,"has_")
+```
+
+```{r protein graph, echo=FALSE}
+Ingredients_df %>%
+  mutate(protein= has_salmon |has_fish |has_chicken |has_meat |has_peas|has_humus |
+           has_veg_hamburger| has_falafel| has_liver | has_egg| has_tofu|has_faba_bean|has_shawarma)%>% 
+  filter(protein== T, Type!=  "zero") %>% 
+  pivot_longer(cols = starts_with("has"),
+    names_to = "protein_type",
+    values_to = "value", values_drop_na = TRUE) %>%
+  select(-c(protein)) %>% 
+  mutate(protein_type= str_remove_all(protein_type,"has_")) %>% 
+  filter(value==1, protein_type %in% protein_list) %>% 
+  
+  ggplot(aes(y= Glucose, x= protein_type,color= protein_type, fill= "Black"))+
+  geom_point()+ geom_boxplot(alpha= 0.2)+
+  theme(legend.position = "none")+
+  ggtitle("Glucose by protein ingrediang indicator") + xlab("")
+```
+
+```{r vegetable compare, echo=FALSE}
+vegetable_list_0<- c('has_potato' ,'has_pomegranate' ,'has_broccoli' ,'has_beetroot' ,'has_cauliflower',
+           'has_peas' , 'has_salad', 'has_tomato' ,'has_garlic', 'has_vegetables','has_mushroom')
+vegetable_list<- str_remove_all(vegetable_list_0,"has_")
+  
+Ingredients_df %>%
+  mutate(vegetable= has_potato |has_pomegranate |has_broccoli |has_beetroot | has_cauliflower|
+           has_peas |has_salad| has_tomato | has_garlic| has_vegetables|has_mushroom)%>% 
+  filter(vegetable== T, Type!=  "zero") %>% 
+  pivot_longer(cols = starts_with("has"),
+    names_to = "vegetable_type",
+    values_to = "value", values_drop_na = TRUE) %>%
+  select(-c(vegetable)) %>% 
+  mutate(vegetable_type= str_remove_all(vegetable_type,"has_")) %>% 
+  filter(value==1, vegetable_type %in% vegetable_list) %>% 
+  
+  ggplot(aes(y= Glucose, x= vegetable_type,color= vegetable_type, fill= "Black"))+
+  geom_point()+#geom_smooth(se= F, method = "lm")
+  geom_boxplot(alpha= 0.2)+
+  theme(legend.position = "none")+
+  ggtitle("Glucose by vegetable ingrediang indicator") + xlab("")
+```
+
+### Ingredients linear model
+
+Ideally, I would use a statistical model in order to understand which food is better for my balance, and create a noun recommendation.
+Unfortunately, this is not a big enough data nor the variables noun recommendation enough.
+Even though, I made linear regression for myself in order to have some clue for how my body works.
+
+```{r bake data}
+options(scipen = 10)
+
+baking_food<- Ingredients_df %>%
+  recipe(Glucose~.) %>% 
+  update_role(ID,Date,Type,Time, new_role = "sider") %>% 
+  step_rm(has_role("sider"),day_list_date) %>% 
+  step_mutate(Time_after_meal2= Time_after_meal^2,
+              has_fish= has_fish|has_salmon,
+              has_chicken= has_chicken| has_shawarma,
+              has_sweet_snack= has_5_ckookies| has_waffels) %>% 
+  step_rm(has_salmon,has_vegetables, has_beetroot, has_hot,has_shawarma,has_5_ckookies,has_waffels)
+
+baked_food<- baking_food %>% prep(Ingredients_df)%>% bake(Ingredients_df) 
+lm_par <- linear_reg() %>% set_mode('regression') %>% set_engine("lm")
+lm_fit <- lm_par %>% fit(Glucose ~ . , baked_food)
+```
+
+Now, I can show a pick to which foods should I eat more / less
+
+```{r lm summery}
+lm_beta<- summary(lm_fit$fit)
+lm_beta
+lm_beta$coefficients %>% 
+  as.data.frame() %>% #colnames()
+  rename(Pr_value= 4) %>% 
+  filter( Pr_value<= 0.35, Estimate<= 0) %>% 
+  arrange(Estimate)%>%  slice(1:7) %>% mutate(across(everything(), ~round(.,4)))%>% 
+  select(-'t value')
+
+lm_beta$coefficients %>% 
+  as.data.frame() %>% #colnames()
+  rename(Pr_value= 4) %>% 
+  filter( Pr_value<= 0.35, Estimate>= 0,
+          row.names(lm_beta$coefficients)!= '(Intercept)') %>% 
+  arrange(desc(Estimate)) %>%  slice(1:6) %>% mutate(across(everything(), ~round(.,4))) %>% 
+  select(-'t value')
+```
+
+In a glance, with $pr(>|t|)< 0.35$ I should avoid snacks(energy snack), sambusak, shalva and sweet snacks, and use more coffee, kuskus, yogurt and egg
+
+```{r visual result, echo=FALSE, eval=FALSE}
+lm_beta<- summary(lm_fit$fit)
+x_glocos<- 0:120
+y_glocos<-  Ingredients_df$Glucose %>% mean()+
+  x_glocos*  lm_beta$coefficients['Time_after_meal' ,1]+
+  x_glocos^2*lm_beta$coefficients['Time_after_meal2',1]
+plot(x_glocos, y_glocos, type = "l", col= "Red")
+```
+
+As said before, there is some correlations that could affect this model, and therefore the liability is quite fragile.
+Here are some of the corelations:
+
+```{r GGally, warning=FALSE, message=FALSE, echo=FALSE}
+#cor_food<- 
+lm_beta$cov.unscaled %>% as.data.frame() %>% 
+  select(starts_with("has_")) %>%
+  select(-has_sambusak, -has_na,has_snyders, -has_milk, -has_honey_cake,
+         -has_laffa, -has_cheese,-has_butter, -has_snyders) %>%  #remove some uncommon
+  filter(str_detect(row.names(lm_beta$cov.unscaled), 'has_')) %>%
+  rename_all(~str_remove_all(., "has_")) %>% 
+GGally:: ggcorr(method = c("everything", "pearson"))+ #visualization of correlations
+  ggtitle("Correlation graph of some common food")
+```
+```{r unwanted GGally, echo=FALSE, eval=FALSE}
+#lm_beta$cov.unscaled%>% as.data.frame()%>% select(!starts_with("has_"))%>% 
+#GGally:: ggcorr(method= c("everything","pearson"))
+```
+
+## conclusions:
+
+After a few days in the project, I felt my energy is more balanced.
+I became less tired during lunch, evening and night.
+
+The experiment's method forced me to eat less snacks, and as a result I found out how dessertless meal makes me feel more full, didn't eat afternoon meal and were more energetic later in the way home.
+
+Moreover, I realize adding a balanced amount of more fat and protein to my meals can stable my sugar rate and cause me to eat less calories without calculating calories or carbohydrates.
+
+Looking for a better body energy balance, I would consider sleeping a slightly better and more might help me maintaining balanced.
+A walk might help as well.
+
+Now here are some food based self advice:
+
+-   Adding fat yogurt to the oatmeal can balance the healthy carbohydrates with oil that stable my sugar.
+
+-   Moderate quantity of carbohydrates like Couscous or quinoa on lunch can be fine as long as the meal contain protein & some fat
+
+-   A fish is a good protein to add to my meals which I hadn't thought on till now
+
+-   Ice cream is the best snack for me, this is might due to the fat and water covering the sugar.
+    Nuts with fresh fruit are also excellent, and Ice coffee is ok.
+    
+
+-   Broccoli and cauliflower are suspected of being good for lunch balance
+
+-   When I have a bad meal, coffee can lower my glucose, and this might relevant to tea as well
+
+-   The last 2 hours before sleep shouldn't contain too big meals (no sambusak before bed...)
+
+**Note!**
+
+This is a self experiment.
+
+There is some path that might be good for most people like mix fat in carbohydrates and space meals,
+but some might not. This self diary can help you create your own diary!
+
+Hope for better health and energy balance for all of you!
