@@ -24,7 +24,7 @@ Although this is a personal experiment, you can do it on yourself and with this 
 
 ### Goal
 
-In this project, I had a special self goal: Improve my nutrition. Using the method from the book, I decided to take a glucose test and test my glucose and see What meals are good for me, given my lifestyle.
+In this project, I had a special self goal: Improve my nutrition. Using the method from the book, I decided to take a glucose test and test my glucose and see what meals are good for me, given my lifestyle.
 
 ### Method
 
@@ -61,7 +61,7 @@ day_score<- read_xlsx(
   filter(!is.na(Walk_today)) %>% 
   mutate(Sleep_before = hour(Sleep_before) + minute(Sleep_before)/60)  #convert time after to numeric for polynomial effect
 
-main_df<- left_join(sweets, day_score, by= c("day_list_date"= "Date") )
+main_df<- left_join(sweets, day_score, by= c("Day_list_date"= "Date") )
 ```
 ```{r Functions for Ingredients split, echo=FALSE}
 mini_color<- function(x)
@@ -169,7 +169,7 @@ main_df%>%
   ggplot(aes(y= Glucose, x= Walke_d_before, color= Dinner))+
   geom_point(alpha= 0.8)+
   geom_smooth( se= F, method = "lm")+xlab("steps walked a day before")+
-  ggtitle("Is it healthy to walk ahead of timr?",
+  ggtitle("Is it healthy to walk ahead of time?",
   subtitle = "Glucose result by steps walked the previous day and meal")+
   scale_color_brewer(palette="Set1")+scale_x_continuous(labels= scales::comma)
 ```
@@ -342,7 +342,7 @@ options(scipen = 10)
 baking_food<- Ingredients_df %>%
   recipe(Glucose~.) %>% 
   update_role(ID,Date,Type,Time, new_role = "sider") %>% 
-  step_rm(has_role("sider"),day_list_date) %>% 
+  step_rm(has_role("sider"),Day_list_date) %>% 
   step_mutate(Time_after_meal2= Time_after_meal^2,
               has_fish= has_fish|has_salmon,
               has_chicken= has_chicken| has_shawarma,
